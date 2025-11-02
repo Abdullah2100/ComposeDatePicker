@@ -39,7 +39,6 @@ import com.vsnappy1.timepicker.enums.MinuteGap
 import com.vsnappy1.timepicker.ui.model.TimePickerConfiguration
 import com.vsnappy1.timepicker.ui.viewmodel.TimePickerViewModel
 import kotlinx.coroutines.launch
-
 @Composable
 fun TimePicker(
     modifier: Modifier = Modifier,
@@ -48,13 +47,26 @@ fun TimePicker(
     minuteGap: MinuteGap = MinuteGap.ONE,
     time: TimePickerTime? = null,
     configuration: TimePickerConfiguration = TimePickerConfiguration.Builder().build(),
-    id: Int = 1
+    id: Int = 1,
+// amPmLocaleList holds localized names for AM and PM in any language;
+// nullable to allow default fallback
+    amPmLocaleList: List<String>? = null
+
 ) {
     val viewModel: TimePickerViewModel = viewModel(key = "TimePickerViewModel$id")
     val timePickerTime = time ?: TimePickerTime.getTime()
     val is24: Boolean = is24Hour ?: DateFormat.is24HourFormat(LocalContext.current)
     val timePickerUiState = viewModel.getUiStateTimeProvided(timePickerTime, minuteGap, is24)
     val uiState by viewModel.uiState.observeAsState(timePickerUiState)
+
+    // This holds the AM/PM list: uses the provided list
+    // if it passes validation (non-null and size == 2),
+    // otherwise falls back to the default list from uiState.
+    val amPmLocaleListHolder by remember {
+       mutableStateOf( if (amPmLocaleList != null && amPmLocaleList.size == 2) amPmLocaleList
+        else uiState.timesOfDay)
+    }
+
     LaunchedEffect(key1 = Unit) { viewModel.updateUiState(timePickerTime, minuteGap, is24) }
 
     TimePickerView(
@@ -69,7 +81,7 @@ fun TimePicker(
         onSelectedMinuteIndexChange = {
             viewModel.updateSelectedMinuteIndex(it)
         },
-        timesOfDay = uiState.timesOfDay,
+        timesOfDay =amPmLocaleListHolder,
         selectedTimeOfDayIndex = uiState.selectedTimeOfDayIndex,
         onSelectedTimeOfDayIndexChange = {
             viewModel.updateSelectedTimeOfDayIndex(it)
@@ -83,6 +95,7 @@ fun TimePicker(
         }
     )
 }
+
 
 @Composable
 private fun TimePickerView(
